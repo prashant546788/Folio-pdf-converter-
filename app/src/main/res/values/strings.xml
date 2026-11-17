@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Folio PDF</string>
+    <string name="nav_studio">Studio</string>
+    <string name="nav_batch">Batch</string>
+    <string name="nav_vault">Vault</string>
+    <string name="nav_cloud">Cloud</string>
+    <string name="action_add_photos">Add Photos</string>
+    <string name="action_add_documents">Add Docs</string>
+    <string name="action_convert_pdf">Convert to PDF</string>
+    <string name="action_batch_convert">Convert All</string>
+    <string name="ocr_toggle_title">Embed Searchable OCR Text</string>
+    <string name="ocr_toggle_subtitle">Extract text from scans and images so PDFs are searchable and selectable</string>
+</resources>

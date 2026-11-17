@@ -1,0 +1,6 @@
+{
+  "name": "Folio PDF",
+  "description": "Convert images and documents into crisp, high-quality PDFs individually or in batch.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
