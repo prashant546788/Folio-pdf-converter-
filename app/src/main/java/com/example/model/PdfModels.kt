@@ -570,3 +570,13 @@ data class PdfTranslationResult(
     }.trim()
 }
 
+data class MergePageItem(
+    val id: String = UUID.randomUUID().toString(),
+    val sourceId: String,
+    val sourceUri: Uri?,
+    val sourceLocalPath: String?,
+    val sourceDisplayName: String,
+    val pageIndex0Based: Int,
+    val pageNumber1Based: Int
+)
+

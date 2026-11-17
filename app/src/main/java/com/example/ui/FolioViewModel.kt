@@ -190,6 +190,7 @@ data class PdfToolsUiState(
     val activeTool: PdfToolMode = PdfToolMode.CREATE_PDF,
     val singleSource: SelectedPdfSource? = null,
     val mergeSources: List<SelectedPdfSource> = emptyList(),
+    val mergePages: List<com.example.model.MergePageItem> = emptyList(),
     val imageFormat: ImageExportFormat = ImageExportFormat.PNG,
     val imageDpi: Int = 220,
     val pageRangeExpr: String = "all",
@@ -221,7 +222,13 @@ data class PdfToolsUiState(
     val progressMessage: String = "",
     val exportedImages: List<ExportedImageInfo> = emptyList(),
     val lastToolPdfResults: List<ConvertedPdfEntity> = emptyList(),
-    val compressionSummary: String? = null
+    val compressionSummary: String? = null,
+    val youtubeUrlInput: String = "",
+    val youtubeVideoInfo: com.example.data.video.YouTubeVideoInfo? = null,
+    val youtubeFormat: String = "720p MP4",
+    val youtubeIsProcessing: Boolean = false,
+    val youtubeProgressMessage: String = "",
+    val youtubeDownloadResult: com.example.data.video.DownloadedVideoResult? = null
 )
 
 data class QrGeneratorUiState(
@@ -256,6 +263,7 @@ data class ScannerUiState(
 
 class FolioViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = PdfRepository(application.applicationContext)
+    private val youtubeEngine = com.example.data.video.YouTubeDownloaderEngine(application)
 
     private val _events = MutableSharedFlow<FolioEvent>()
     val events: SharedFlow<FolioEvent> = _events.asSharedFlow()
@@ -1323,9 +1331,11 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
         )
         _pdfToolsState.update { state ->
             if (mode == PdfToolMode.MERGE_PDFS) {
+                val newSources = state.mergeSources + source
                 state.copy(
                     activeTool = mode,
-                    mergeSources = state.mergeSources + source,
+                    mergeSources = newSources,
+                    mergePages = computeMergePages(newSources),
                     exportedImages = emptyList(),
                     lastToolPdfResults = emptyList(),
                     lastTranslationResult = null,
@@ -1369,9 +1379,11 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
                 }.getOrNull()
             }
             if (inspected.isNotEmpty()) {
-                _pdfToolsState.update {
-                    it.copy(
-                        mergeSources = it.mergeSources + inspected,
+                _pdfToolsState.update { state ->
+                    val newSources = state.mergeSources + inspected
+                    state.copy(
+                        mergeSources = newSources,
+                        mergePages = computeMergePages(newSources),
                         lastToolPdfResults = emptyList()
                     )
                 }
@@ -1386,9 +1398,11 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
             pageCount = doc.pageCount,
             sizeBytes = doc.fileSizeBytes
         )
-        _pdfToolsState.update {
-            it.copy(
-                mergeSources = it.mergeSources + source,
+        _pdfToolsState.update { state ->
+            val newSources = state.mergeSources + source
+            state.copy(
+                mergeSources = newSources,
+                mergePages = computeMergePages(newSources),
                 lastToolPdfResults = emptyList()
             )
         }
@@ -1400,7 +1414,10 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
             val list = state.mergeSources.toMutableList()
             val item = list.removeAt(index)
             list.add(index - 1, item)
-            state.copy(mergeSources = list)
+            state.copy(
+                mergeSources = list,
+                mergePages = computeMergePages(list)
+            )
         }
     }
 
@@ -1410,18 +1427,77 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
             val list = state.mergeSources.toMutableList()
             val item = list.removeAt(index)
             list.add(index + 1, item)
-            state.copy(mergeSources = list)
+            state.copy(
+                mergeSources = list,
+                mergePages = computeMergePages(list)
+            )
         }
     }
 
     fun removeMergePdf(id: String) {
         _pdfToolsState.update { state ->
-            state.copy(mergeSources = state.mergeSources.filterNot { it.id == id })
+            val updatedSources = state.mergeSources.filterNot { it.id == id }
+            state.copy(
+                mergeSources = updatedSources,
+                mergePages = computeMergePages(updatedSources)
+            )
         }
     }
 
     fun clearMergePdfs() {
-        _pdfToolsState.update { it.copy(mergeSources = emptyList(), lastToolPdfResults = emptyList()) }
+        _pdfToolsState.update {
+            it.copy(
+                mergeSources = emptyList(),
+                mergePages = emptyList(),
+                lastToolPdfResults = emptyList()
+            )
+        }
+    }
+
+    fun moveMergePageUp(index: Int) {
+        if (index <= 0) return
+        _pdfToolsState.update { state ->
+            val list = state.mergePages.toMutableList()
+            val item = list.removeAt(index)
+            list.add(index - 1, item)
+            state.copy(mergePages = list)
+        }
+    }
+
+    fun moveMergePageDown(index: Int) {
+        _pdfToolsState.update { state ->
+            if (index >= state.mergePages.lastIndex) return@update state
+            val list = state.mergePages.toMutableList()
+            val item = list.removeAt(index)
+            list.add(index + 1, item)
+            state.copy(mergePages = list)
+        }
+    }
+
+    fun removeMergePageItem(id: String) {
+        _pdfToolsState.update { state ->
+            state.copy(mergePages = state.mergePages.filterNot { it.id == id })
+        }
+    }
+
+    private fun computeMergePages(sources: List<SelectedPdfSource>): List<com.example.model.MergePageItem> {
+        val pages = mutableListOf<com.example.model.MergePageItem>()
+        for (src in sources) {
+            val count = src.pageCount.coerceAtLeast(1)
+            for (p in 0 until count) {
+                pages.add(
+                    com.example.model.MergePageItem(
+                        sourceId = src.id,
+                        sourceUri = src.uri,
+                        sourceLocalPath = src.localFilePath,
+                        sourceDisplayName = src.displayName,
+                        pageIndex0Based = p,
+                        pageNumber1Based = p + 1
+                    )
+                )
+            }
+        }
+        return pages
     }
 
     fun setMergeOutputName(name: String) {
@@ -1825,18 +1901,18 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
 
     fun runMergePdfs() {
         val state = _pdfToolsState.value
-        if (state.mergeSources.size < 2 || state.isProcessing) return
+        if (state.mergePages.isEmpty() || state.isProcessing) return
         viewModelScope.launch {
             _pdfToolsState.update {
                 it.copy(
                     isProcessing = true,
-                    progressMessage = "Merging PDFs...",
+                    progressMessage = "Merging custom page order...",
                     lastToolPdfResults = emptyList()
                 )
             }
             try {
-                val merged = repository.mergePdfsAndSave(
-                    sources = state.mergeSources.map { it.uri to it.localFilePath },
+                val merged = repository.mergeCustomPagesAndSave(
+                    pages = state.mergePages,
                     outputBaseName = state.mergeOutputName.ifBlank { "Merged_Folio" },
                     enableOcr = settings.value.enableOcr,
                     security = _securityConfig.value,
@@ -1853,7 +1929,7 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
                         lastToolPdfResults = listOf(merged)
                     )
                 }
-                _events.emit(FolioEvent.Snackbar("Merged into ${merged.fileName} (${merged.pageCount} pages)"))
+                _events.emit(FolioEvent.Snackbar("Merged ${state.mergePages.size} pages into ${merged.fileName}!"))
             } catch (e: Exception) {
                 _pdfToolsState.update { it.copy(isProcessing = false, progressMessage = "") }
                 _events.emit(FolioEvent.Snackbar(e.localizedMessage ?: "Merge failed"))
@@ -2868,6 +2944,65 @@ class FolioViewModel(application: Application) : AndroidViewModel(application) {
             } catch (e: Exception) {
                 _scannerState.update { it.copy(qrGenerator = it.qrGenerator.copy(isSaving = false)) }
                 _events.emit(FolioEvent.Snackbar(e.localizedMessage ?: "Failed to save QR PDF"))
+            }
+        }
+    }
+
+    fun setYoutubeUrl(url: String) {
+        _pdfToolsState.update { it.copy(youtubeUrlInput = url) }
+    }
+
+    fun setYoutubeFormat(fmt: String) {
+        _pdfToolsState.update { it.copy(youtubeFormat = fmt) }
+    }
+
+    fun fetchYoutubeVideoInfo() {
+        val url = _pdfToolsState.value.youtubeUrlInput.trim()
+        if (url.isBlank()) return
+        viewModelScope.launch {
+            _pdfToolsState.update { it.copy(youtubeIsProcessing = true, youtubeProgressMessage = "Fetching video details...") }
+            runCatching {
+                val info = youtubeEngine.fetchVideoInfo(url)
+                _pdfToolsState.update {
+                    it.copy(
+                        youtubeIsProcessing = false,
+                        youtubeProgressMessage = "",
+                        youtubeVideoInfo = info,
+                        youtubeDownloadResult = null
+                    )
+                }
+            }.onFailure { err ->
+                _pdfToolsState.update { it.copy(youtubeIsProcessing = false, youtubeProgressMessage = "") }
+                _events.emit(FolioEvent.Snackbar("Failed to fetch video: ${err.localizedMessage}"))
+            }
+        }
+    }
+
+    fun downloadYoutubeMedia() {
+        val state = _pdfToolsState.value
+        val info = state.youtubeVideoInfo ?: return
+        if (state.youtubeIsProcessing) return
+        viewModelScope.launch {
+            _pdfToolsState.update { it.copy(youtubeIsProcessing = true, youtubeProgressMessage = "Starting download...") }
+            runCatching {
+                val res = youtubeEngine.downloadYouTubeMedia(
+                    videoInfo = info,
+                    formatQuality = state.youtubeFormat,
+                    onProgress = { msg ->
+                        _pdfToolsState.update { it.copy(youtubeProgressMessage = msg) }
+                    }
+                )
+                _pdfToolsState.update {
+                    it.copy(
+                        youtubeIsProcessing = false,
+                        youtubeProgressMessage = "",
+                        youtubeDownloadResult = res
+                    )
+                }
+                _events.emit(FolioEvent.Snackbar("Downloaded ${res.fileName}!"))
+            }.onFailure { err ->
+                _pdfToolsState.update { it.copy(youtubeIsProcessing = false, youtubeProgressMessage = "") }
+                _events.emit(FolioEvent.Snackbar("Download failed: ${err.localizedMessage}"))
             }
         }
     }

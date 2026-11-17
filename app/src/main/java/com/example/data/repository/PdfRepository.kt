@@ -916,6 +916,33 @@ class PdfRepository(private val context: Context) {
         )
     }
 
+    suspend fun mergeCustomPagesAndSave(
+        pages: List<com.example.model.MergePageItem>,
+        outputBaseName: String,
+        enableOcr: Boolean,
+        security: PdfSecurityConfig = PdfSecurityConfig(),
+        metadata: PdfMetadataConfig = PdfMetadataConfig(),
+        watermark: PdfWatermarkConfig = PdfWatermarkConfig(),
+        onProgress: suspend (String) -> Unit = {}
+    ): ConvertedPdfEntity {
+        val info = toolboxEngine.mergeCustomPages(
+            pages = pages,
+            outputBaseName = outputBaseName,
+            enableOcr = enableOcr,
+            onProgress = onProgress
+        )
+        return insertGeneratedPdf(
+            info = info,
+            summary = "Merged ${pages.size} pages from multiple PDFs",
+            ocrEnabled = enableOcr && info.fullText.isNotBlank(),
+            batchId = null,
+            security = security,
+            metadata = metadata,
+            watermark = watermark,
+            onProgress = onProgress
+        )
+    }
+
     suspend fun protectExistingPdfAndSave(
         uri: Uri?,
         localFilePath: String?,

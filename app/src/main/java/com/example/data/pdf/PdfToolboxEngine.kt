@@ -340,6 +340,74 @@ class PdfToolboxEngine(
         )
     }
 
+    suspend fun mergeCustomPages(
+        pages: List<com.example.model.MergePageItem>,
+        outputBaseName: String,
+        enableOcr: Boolean,
+        onProgress: suspend (String) -> Unit = {}
+    ): GeneratedPdfInfo = withContext(Dispatchers.IO) {
+        val safeBase = sanitizeBase(outputBaseName.removeSuffix(".pdf"))
+        val outFile = createUniquePdfFile(safeBase)
+        val document = PdfDocument()
+        val pageTexts = mutableListOf<String>()
+
+        try {
+            for ((idx, pageItem) in pages.withIndex()) {
+                coroutineContext.ensureActive()
+                onProgress("Merging page ${idx + 1}/${pages.size} (${pageItem.sourceDisplayName} p.${pageItem.pageNumber1Based})...")
+                withReadablePdfDescriptor(pageItem.sourceUri, pageItem.sourceLocalPath, null) { descriptor ->
+                    PdfRenderer(descriptor).use { renderer ->
+                        if (pageItem.pageIndex0Based >= 0 && pageItem.pageIndex0Based < renderer.pageCount) {
+                            renderer.openPage(pageItem.pageIndex0Based).use { srcPage ->
+                                val scale = 200f / 72f
+                                val bmpW = (srcPage.width * scale).toInt().coerceIn(400, 2200)
+                                val bmpH = (srcPage.height * scale).toInt().coerceIn(400, 3000)
+                                val bmp = Bitmap.createBitmap(bmpW, bmpH, Bitmap.Config.ARGB_8888)
+                                try {
+                                    bmp.eraseColor(Color.WHITE)
+                                    srcPage.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_PRINT)
+                                    val ocrResult = if (enableOcr) {
+                                        ocrProcessor.recognizeBitmap(bmp)
+                                    } else {
+                                        OcrPageResult("", emptyList())
+                                    }
+                                    val pageW = srcPage.width.coerceAtLeast(200)
+                                    val pageH = srcPage.height.coerceAtLeast(200)
+                                    val pageInfo = PdfDocument.PageInfo.Builder(pageW, pageH, idx + 1).create()
+                                    val outPage = document.startPage(pageInfo)
+                                    drawFullBleedBitmap(outPage.canvas, bmp, ocrResult, pageW, pageH)
+                                    document.finishPage(outPage)
+                                    pageTexts.add(ocrResult.fullText)
+                                } finally {
+                                    bmp.recycle()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if (pages.isEmpty()) error("No pages selected to merge.")
+            FileOutputStream(outFile).use { fos -> document.writeTo(fos) }
+        } catch (t: Throwable) {
+            if (outFile.exists()) outFile.delete()
+            throw t
+        } finally {
+            document.close()
+        }
+
+        val combined = pageTexts.filter { it.isNotBlank() }.joinToString("\n\n")
+        val jsonArr = JSONArray().apply { pageTexts.forEach { put(it) } }
+        GeneratedPdfInfo(
+            fileName = outFile.name,
+            filePath = outFile.absolutePath,
+            pageCount = pages.size,
+            fileSizeBytes = outFile.length(),
+            fullText = combined,
+            pageTextsJson = jsonArr.toString()
+        )
+    }
+
+
     private suspend fun renderSubsetToPdf(
         renderer: PdfRenderer,
         pageIndices: List<Int>,

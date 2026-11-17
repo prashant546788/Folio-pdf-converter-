@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AutoFixHigh
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.DocumentScanner
 import androidx.compose.material.icons.filled.DynamicFeed
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.AutoFixHigh
+import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.DynamicFeed
 import androidx.compose.material.icons.outlined.FolderCopy
@@ -72,6 +74,7 @@ import com.example.ui.ScannerTab
 import com.example.ui.components.ProviderConfigDialog
 import com.example.ui.components.StatusPill
 import com.example.ui.screens.BatchScreen
+import com.example.ui.screens.CalculatorsScreen
 import com.example.ui.screens.CloudScreen
 import com.example.ui.screens.NotesScreen
 import com.example.ui.screens.PdfViewerScreen
@@ -84,6 +87,7 @@ import com.example.ui.theme.FolioPdfTheme
 
 private const val ROUTE_STUDIO = "studio"
 private const val ROUTE_BATCH = "batch"
+private const val ROUTE_CALCS = "calculators"
 private const val ROUTE_NOTES = "notes"
 private const val ROUTE_VAULT = "vault"
 private const val ROUTE_CLOUD = "cloud"
@@ -102,6 +106,7 @@ private data class NavTab(
 private val TOP_TABS = listOf(
     NavTab(ROUTE_STUDIO, "Studio", Icons.Filled.AutoFixHigh, Icons.Outlined.AutoFixHigh),
     NavTab(ROUTE_BATCH, "Batch", Icons.Filled.DynamicFeed, Icons.Outlined.DynamicFeed),
+    NavTab(ROUTE_CALCS, "Toolkit", Icons.Filled.Calculate, Icons.Outlined.Calculate),
     NavTab(ROUTE_NOTES, "Notes", Icons.Filled.AutoAwesome, Icons.Outlined.AutoAwesome),
     NavTab(ROUTE_VAULT, "Vault", Icons.Filled.FolderCopy, Icons.Outlined.FolderCopy),
     NavTab(ROUTE_CLOUD, "Cloud", Icons.Filled.Cloud, Icons.Outlined.Cloud)
@@ -417,6 +422,9 @@ fun FolioPdfApp(viewModel: FolioViewModel) {
                                 onMoveMergePdfDown = viewModel::moveMergePdfDown,
                                 onRemoveMergePdf = viewModel::removeMergePdf,
                                 onClearMergePdfs = viewModel::clearMergePdfs,
+                                 onMoveMergePageUp = viewModel::moveMergePageUp,
+                                 onMoveMergePageDown = viewModel::moveMergePageDown,
+                                 onRemoveMergePageItem = viewModel::removeMergePageItem,
                                 onMergeOutputNameChange = viewModel::setMergeOutputName,
                                 onImageFormatChange = viewModel::setToolImageFormat,
                                 onImageDpiChange = viewModel::setToolImageDpi,
@@ -480,6 +488,13 @@ fun FolioPdfApp(viewModel: FolioViewModel) {
                                 onConnectCloud = viewModel::connectCloudProvider,
                                 onOpenVault = { navigateToTab(ROUTE_VAULT) },
                                 onOpenSettings = { navController.navigate(ROUTE_SETTINGS) }
+                            )
+                        }
+                        composable(ROUTE_CALCS) {
+                            CalculatorsScreen(
+                                vaultDocuments = vaultDocs,
+                                onOpenViewer = viewModel::openDocumentInViewer,
+                                onSaveToDownloads = viewModel::saveToDownloads
                             )
                         }
                         composable(ROUTE_NOTES) {

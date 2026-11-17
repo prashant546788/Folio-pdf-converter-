@@ -71,6 +71,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -131,6 +132,9 @@ fun PdfToolsSection(
     onMoveMergeDown: (Int) -> Unit,
     onRemoveMergeItem: (String) -> Unit,
     onClearMergeList: () -> Unit,
+    onMoveMergePageUp: (Int) -> Unit,
+    onMoveMergePageDown: (Int) -> Unit,
+    onRemoveMergePageItem: (String) -> Unit,
     onMergeOutputNameChange: (String) -> Unit,
     onImageFormatChange: (ImageExportFormat) -> Unit,
     onImageDpiChange: (Int) -> Unit,
@@ -974,6 +978,77 @@ fun PdfToolsSection(
                             }
                         }
                     }
+
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Page Reorder Queue (${toolsState.mergePages.size} pages)",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = "Rearrange or remove individual pages before merging:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(4.dp))
+
+                    toolsState.mergePages.forEachIndexed { pIdx, pageItem ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "${pIdx + 1}",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.width(10.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "${pageItem.sourceDisplayName} (Page ${pageItem.pageNumber1Based})",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { onMoveMergePageUp(pIdx) },
+                                    enabled = !toolsState.isProcessing && pIdx > 0,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Filled.ArrowUpward, contentDescription = "Move page up", modifier = Modifier.size(18.dp))
+                                }
+                                IconButton(
+                                    onClick = { onMoveMergePageDown(pIdx) },
+                                    enabled = !toolsState.isProcessing && pIdx < toolsState.mergePages.lastIndex,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Filled.ArrowDownward, contentDescription = "Move page down", modifier = Modifier.size(18.dp))
+                                }
+                                IconButton(
+                                    onClick = { onRemoveMergePageItem(pageItem.id) },
+                                    enabled = !toolsState.isProcessing && toolsState.mergePages.size > 1,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(Icons.Filled.Close, contentDescription = "Remove page", modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Card(
@@ -1013,7 +1088,7 @@ fun PdfToolsSection(
 
                         Button(
                             onClick = onRunMergePdfs,
-                            enabled = toolsState.mergeSources.size >= 2 && !toolsState.isProcessing,
+                            enabled = toolsState.mergePages.isNotEmpty() && !toolsState.isProcessing,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(52.dp)
@@ -1022,8 +1097,8 @@ fun PdfToolsSection(
                             Icon(Icons.AutoMirrored.Filled.MergeType, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                if (toolsState.mergeSources.size < 2) "Select at least 2 PDFs to Merge"
-                                else "Merge ${toolsState.mergeSources.size} PDFs"
+                                if (toolsState.mergePages.isEmpty()) "Add PDFs to Merge"
+                                else "Merge ${toolsState.mergePages.size} Pages into 1 PDF"
                             )
                         }
                     }
