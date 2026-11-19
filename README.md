@@ -1,8 +1,8 @@
 ## What this is
 **Folio PDF is an Android app for working with PDFs and related documents.** It goes beyond file conversion: users can batch-process PDFs, apply tools such as merge, split, compression, security, metadata, and watermarks, then view, print, save, or upload documents. It also includes document scanning, QR/barcode tools, and AI-assisted notes and translation.
-<img width="360" height="570" alt="1000199953" src="https://github.com/user-attachments/assets/83b8dfc7-7943-46ce-a59e-d8834e59210a" />
-<img width="360" height="570" alt="1000199955" src="https://github.com/user-attachments/assets/653ddd8b-0e61-4101-b141-a9a043f3ab44" />
-<img width="360" height="570" alt="1000199952" src="https://github.com/user-attachments/assets/a41e00a9-fed3-427e-ac5b-7a29dc630b6c" />
+<img width="460" height="770" alt="1000199953" src="https://github.com/user-attachments/assets/83b8dfc7-7943-46ce-a59e-d8834e59210a" />
+<img width="460" height="770" alt="1000199955" src="https://github.com/user-attachments/assets/653ddd8b-0e61-4101-b141-a9a043f3ab44" />
+<img width="460" height="770" alt="1000199952" src="https://github.com/user-attachments/assets/a41e00a9-fed3-427e-ac5b-7a29dc630b6c" />
 ### Stack
 - **Language(s):** Kotlin; Gradle Kotlin DSL for build configuration
 - **Framework / runtime:** Android, with Jetpack Compose and Material 3 for the UI
